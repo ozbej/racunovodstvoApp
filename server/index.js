@@ -3,6 +3,7 @@ const bodyParser = require('body-parser')
 const cors = require('cors');
 const app = express();
 const mysql = require('mysql');
+const bcrypt = require('bcrypt');
 
 // Connect to DB
 const db = mysql.createPool({
@@ -18,7 +19,6 @@ app.use(express.json());
 app.use(bodyParser.urlencoded({extended: true}));
 
 // *API endpoints*
-
 // Default
 app.get('/api/getZavezanci', (req, res) => {
     const getZavarovanci = "SELECT * FROM zavezanci WHERE racunovodstvo_id = ?";
@@ -38,10 +38,13 @@ app.post('/api/register', (req, res) => {
     const title = req.body.title;    
     const davcnaSt = req.body.davcnaSt;    
     const trr = req.body.trr;    
-    const maticnaSt = req.body.maticnaSt;    
+    const maticnaSt = req.body.maticnaSt;
+
+    // Kriptiranje gesla
+    const password_digest = bcrypt.hashSync(password, 10);
 
     const registerRacunovodstvo = "INSERT INTO racunovodstva (naziv_racunovodstva, davcna_st, trr, maticna_st, ime_lastnika, priimek_lastnika, tel_st_lastnika, email_lastnika, geslo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    db.query(registerRacunovodstvo, [title, davcnaSt, trr, maticnaSt, name, lastName, telSt, email, password], (err, result) => {
+    db.query(registerRacunovodstvo, [title, davcnaSt, trr, maticnaSt, name, lastName, telSt, email, password_digest], (err, result) => {
         console.log(result);
     });
 });
@@ -51,7 +54,7 @@ app.post('/api/login', (req, res) => {
     const email = req.body.email;
     const password = req.body.password;
 
-    const loginRacunovodstvo = "SELECT * FROM racunovodstva WHERE email_lastnika = ? AND geslo = ?";
+    const loginRacunovodstvo = "SELECT id FROM racunovodstva WHERE email_lastnika = ? AND geslo = ?";
     db.query(loginRacunovodstvo, [email, password], (err, result) => {
         if (err) res.send({err: err});
 
