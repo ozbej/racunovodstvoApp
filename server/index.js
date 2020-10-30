@@ -4,6 +4,7 @@ const cors = require('cors');
 const app = express();
 const mysql = require('mysql');
 const bcrypt = require('bcrypt');
+const { response } = require('express');
 
 // Connect to DB
 const db = mysql.createPool({
@@ -19,10 +20,14 @@ app.use(express.json());
 app.use(bodyParser.urlencoded({extended: true}));
 
 // *API endpoints*
-// Default
 app.get('/api/getZavezanci', (req, res) => {
+
+    const { racunovodstvoId } = req.query; 
+
+    console.log(racunovodstvoId)
+
     const getZavarovanci = "SELECT * FROM zavezanci WHERE racunovodstvo_id = ?";
-    db.query(getZavarovanci, 1, (err, result) => {
+    db.query(getZavarovanci, racunovodstvoId, (err, result) => {
         res.send(result);
     });
 });
@@ -30,15 +35,7 @@ app.get('/api/getZavezanci', (req, res) => {
 // Registriraj računovodstvo
 app.post('/api/register', (req, res) => {
 
-    const name = req.body.name;    
-    const lastName = req.body.lastName;    
-    const email = req.body.email;    
-    const telSt = req.body.telSt;    
-    const password = req.body.password;    
-    const title = req.body.title;    
-    const davcnaSt = req.body.davcnaSt;    
-    const trr = req.body.trr;    
-    const maticnaSt = req.body.maticnaSt;
+    const { name, lastName, email, telSt, password, title, davcnaSt, trr, maticnaSt } = req.body;
 
     // Kriptiranje gesla
     const password_digest = bcrypt.hashSync(password, 10);
@@ -51,35 +48,43 @@ app.post('/api/register', (req, res) => {
 
 app.post('/api/login', (req, res) => {
 
-    const email = req.body.email;
-    const password = req.body.password;
+    const { email, password } = req.body;
 
-    const loginRacunovodstvo = "SELECT id FROM racunovodstva WHERE email_lastnika = ? AND geslo = ?";
-    db.query(loginRacunovodstvo, [email, password], (err, result) => {
+    const loginRacunovodstvo = "SELECT * FROM racunovodstva WHERE email_lastnika = ?";
+    db.query(loginRacunovodstvo, [email, password], (err, user, result) => {
+
         if (err) res.send({err: err});
 
-        if (result.length > 0) res.send(result);
+        if (result.length > 0) {
+            bcrypt.compare(password, user[0].geslo, (err, bRes) => {
+                if (bRes) {
+                    console.log(user[0].id)
+                    res.json({"id": user[0].id});
+                }
+                else res.send({message: "Napačna kombinacija emaila in gesla"});
+            })
+        }
         else res.send({message: "Napačna kombinacija emaila in gesla"});
     });
 
 })
 
 // Dodaj zavezanca
-app.post('/api/insertZavezanec', (req, res) => {
+app.post('/api/addZavezanec', (req, res) => {
 
-    const racunovodstvoId = req.body.racunovodstvoId;
-    const krajId = req.body.krajId;
-    const nazivPodjetja = req.body.nazivPodjetja;
-    const ime = req.body.ime;
-    const priimek = req.body.priimek;
-    const ulica = req.body.ulica;
-    const hisnaSt = req.body.hisnaSt;
-    const davcnaSt = req.body.davcnaSt;
-
+    const { racunovodstvoId, krajId, nazivPodjetja, ime, priimek, ulica, hisnaSt, davcnaSt } = req.body;
 
     const insertZavarovanec = "INSERT INTO zavezanci (racunovodstvo_id, kraj_id, naziv_podjetja, ime, priimek, ulica, hisna_st, davcna_st) VALUES (?, ?, ?, ?, ?, ?, ?, ?);";
     db.query(insertZavarovanec, [racunovodstvoId, krajId, nazivPodjetja, ime, priimek, ulica, hisnaSt, davcnaSt], (err, result) => {
         console.log(result);
+    });
+});
+
+// Pribodi vse kraje
+app.get('/api/getKraji', (req, res) => {
+    const getZavarovanci = "SELECT * FROM kraji ORDER BY ime";
+    db.query(getZavarovanci, 1, (err, result) => {
+        res.send(result);
     });
 });
 
